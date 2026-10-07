@@ -1,6 +1,19 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Along</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>body{margin:0;font-family:system-ui} .note{color:#6e675e}</style></head><body>
-<p>Reload in a minute if you still see the old screen.</p>
-<script src="app.js"></script></body></html>
+<style>:root{--ink:#1c1915;--muted:#6e675e;--green:#234e3a;--sand:#efe6d6}body{margin:0;font-family:system-ui;background:#e4ddd0}#map{height:62vh}.bar{padding:12px}button{border:0;border-radius:12px;padding:10px 12px;margin:4px;font:inherit}.on{background:#e7f0ea}.cta{background:#234e3a;color:#fff}</style></head><body>
+<div id="map"></div><div class="bar"><b id="title">Along</b><p id="status"></p><div id="plans"></div><div id="when"></div><div id="mode"></div><p id="note"></p><button class="cta" onclick="publish()">I'm out</button> <button onclick="endWalk()">End walk</button></div>
+<script>
+const plans=['Quick 10-15 min','Long walk, no rush','Coffee stop','Around the block'];
+let plan=plans[0], wait=0, mode='pin', map, marker, me=null;
+try{me=JSON.parse(localStorage.getItem('along-out')||'null')}catch(e){}
+function mins(ts){return Math.max(0,Math.ceil((ts-Date.now())/60000))}
+function label(){if(!me)return 'Not out'; const left=mins(me.startAt); const state=left>0?('Starts in '+left+' min'):'Out now'; const off=mins(me.offAt); return state+'. '+(me.mode==='live'?('Live ends in '+off+' min'):('Pin drops in '+off+' min if you forget'))}
+function render(){document.getElementById('status').textContent=label(); if(me&&Date.now()>=me.offAt){me=null; localStorage.removeItem('along-out'); document.getElementById('status').textContent='Ended itself, 30 min after the start.';}}
+function choose(id, values, set){document.getElementById(id).innerHTML=values.map(v=>'<button data-v="'+v+'" onclick="pick(this)">'+v+'</button>').join('');}
+function pick(btn){[...btn.parentElement.children].forEach(b=>b.classList.remove('on')); btn.classList.add('on'); if(btn.parentElement.id==='plans') plan=btn.dataset.v; if(btn.parentElement.id==='when') wait=Number(btn.dataset.v); if(btn.parentElement.id==='mode'){mode=btn.dataset.v; document.getElementById('note').textContent=mode==='live'?'Live turns off by itself 30 min after the walk starts.':'Pin also drops 30 min after the start if you forget.';}}
+function publish(){const startAt=Date.now()+wait*60000; me={plan, wait, mode, startAt, offAt:startAt+30*60000, lat:marker.getLatLng().lat, lng:marker.getLatLng().lng}; localStorage.setItem('along-out', JSON.stringify(me)); render();}
+function endWalk(){me=null; localStorage.removeItem('along-out'); render();}
+choose('plans', plans); choose('when', [0,10,20,30]); choose('mode', ['pin','live']); document.querySelector('#plans button').classList.add('on'); document.querySelector('#when button').classList.add('on'); document.querySelector('#mode button').classList.add('on'); document.getElementById('note').textContent='In 10 becomes Out now by itself. Live ends 30 min after that start.';
+map=L.map('map').setView([48.208,16.373],14); L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(map); marker=L.marker([48.208,16.373],{draggable:true}).addTo(map); if(navigator.geolocation) navigator.geolocation.getCurrentPosition(p=>{const ll=[p.coords.latitude,p.coords.longitude]; map.setView(ll,15); marker.setLatLng(ll);}); setInterval(render,15000); render();
+</script></body></html>
